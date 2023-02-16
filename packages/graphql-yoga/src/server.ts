@@ -36,6 +36,7 @@ import { useCheckMethodForGraphQL } from './plugins/requestValidation/useCheckMe
 import { useHTTPValidationError } from './plugins/requestValidation/useHTTPValidationError.js'
 import { useLimitBatching } from './plugins/requestValidation/useLimitBatching.js'
 import { usePreventMutationViaGET } from './plugins/requestValidation/usePreventMutationViaGET.js'
+import { SSEProcessorOptions } from './plugins/resultProcessor/sse.js'
 import {
   OnParamsHook,
   OnRequestHook,
@@ -166,6 +167,10 @@ export type YogaServerOptions<TServerContext, TUserContext> = {
    * @default false
    */
   batching?: BatchingOptions
+  /**
+   * Options for Server-Sent Events
+   */
+  sse?: SSEProcessorOptions
 }
 
 export type BatchingOptions =
@@ -341,7 +346,7 @@ export class YogaServer<
         parse: parsePOSTFormUrlEncodedRequest,
       }),
       // Middlewares after the GraphQL execution
-      useResultProcessors(),
+      useResultProcessors(options?.sse),
       ...(options?.plugins ?? []),
       // To make sure those are called at the end
       {
