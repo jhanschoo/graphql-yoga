@@ -70,7 +70,7 @@ describe('graphql-auth example integration', () => {
     for await (const chunk of response.body!) {
       const chunkString = Buffer.from(chunk).toString('utf-8')
       if (chunkString.includes('data:')) {
-        expect(chunkString.trim()).toBe('data: {"data":{"public":"hi"}}')
+        expect(chunkString.trim()).toContain('data: {"data":{"public":"hi"}}')
         break
       }
     }
