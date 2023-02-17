@@ -33,37 +33,46 @@ describe('graphql-sse', () => {
   const yoga = createYoga({
     schema,
     plugins: [useGraphQLSSE()],
+    sse: {
+      graphqlSSEDistinctConnections: true,
+    },
     maskedErrors: false,
   })
 
+  let client: ReturnType<typeof createClient>
+
+  afterEach(() => {
+    client?.dispose()
+  })
+
   it('should stream using distinct connection mode', async () => {
-    const client = createClient({
-      url: 'http://yoga/graphql/stream',
+    client = createClient({
+      url: 'http://yoga/graphql',
       fetchFn: yoga.fetch,
       abortControllerImpl: yoga.fetchAPI.AbortController,
       singleConnection: false, // distinct connection mode
       retryAttempts: 0,
     })
 
-    await expect(
-      new Promise((resolve, reject) => {
-        const msgs: unknown[] = []
-        client.subscribe(
-          {
-            query: /* GraphQL */ `
-              subscription {
-                greetings
-              }
-            `,
-          },
-          {
-            next: (msg) => msgs.push(msg),
-            error: reject,
-            complete: () => resolve(msgs),
-          },
-        )
-      }),
-    ).resolves.toMatchInlineSnapshot(`
+    const result = await new Promise((resolve, reject) => {
+      const msgs: unknown[] = []
+      client.subscribe(
+        {
+          query: /* GraphQL */ `
+            subscription {
+              greetings
+            }
+          `,
+        },
+        {
+          next: (msg) => msgs.push(msg),
+          error: reject,
+          complete: () => resolve(msgs),
+        },
+      )
+    })
+
+    expect(result).toMatchInlineSnapshot(`
       [
         {
           "data": {
@@ -92,13 +101,11 @@ describe('graphql-sse', () => {
         },
       ]
     `)
-
-    client.dispose()
   })
 
   it('should stream using single connection and lazy mode', async () => {
-    const client = createClient({
-      url: 'http://yoga/graphql/stream',
+    client = createClient({
+      url: 'http://yoga/graphql',
       fetchFn: yoga.fetch,
       abortControllerImpl: yoga.fetchAPI.AbortController,
       singleConnection: true, // single connection mode
@@ -106,25 +113,25 @@ describe('graphql-sse', () => {
       retryAttempts: 0,
     })
 
-    await expect(
-      new Promise((resolve, reject) => {
-        const msgs: unknown[] = []
-        client.subscribe(
-          {
-            query: /* GraphQL */ `
-              subscription {
-                greetings
-              }
-            `,
-          },
-          {
-            next: (msg) => msgs.push(msg),
-            error: reject,
-            complete: () => resolve(msgs),
-          },
-        )
-      }),
-    ).resolves.toMatchInlineSnapshot(`
+    const result = await new Promise((resolve, reject) => {
+      const msgs: unknown[] = []
+      client.subscribe(
+        {
+          query: /* GraphQL */ `
+            subscription {
+              greetings
+            }
+          `,
+        },
+        {
+          next: (msg) => msgs.push(msg),
+          error: reject,
+          complete: () => resolve(msgs),
+        },
+      )
+    })
+
+    expect(result).toMatchInlineSnapshot(`
       [
         {
           "data": {
@@ -153,13 +160,11 @@ describe('graphql-sse', () => {
         },
       ]
     `)
-
-    client.dispose()
   })
 
   it('should stream using single connection and non-lazy mode', async () => {
-    const client = createClient({
-      url: 'http://yoga/graphql/stream',
+    client = createClient({
+      url: 'http://yoga/graphql',
       fetchFn: yoga.fetch,
       abortControllerImpl: yoga.fetchAPI.AbortController,
       singleConnection: true, // single connection mode
@@ -167,25 +172,25 @@ describe('graphql-sse', () => {
       retryAttempts: 0,
     })
 
-    await expect(
-      new Promise((resolve, reject) => {
-        const msgs: unknown[] = []
-        client.subscribe(
-          {
-            query: /* GraphQL */ `
-              subscription {
-                greetings
-              }
-            `,
-          },
-          {
-            next: (msg) => msgs.push(msg),
-            error: reject,
-            complete: () => resolve(msgs),
-          },
-        )
-      }),
-    ).resolves.toMatchInlineSnapshot(`
+    const result = await new Promise((resolve, reject) => {
+      const msgs: unknown[] = []
+      client.subscribe(
+        {
+          query: /* GraphQL */ `
+            subscription {
+              greetings
+            }
+          `,
+        },
+        {
+          next: (msg) => msgs.push(msg),
+          error: reject,
+          complete: () => resolve(msgs),
+        },
+      )
+    })
+
+    expect(result).toMatchInlineSnapshot(`
       [
         {
           "data": {
@@ -214,8 +219,6 @@ describe('graphql-sse', () => {
         },
       ]
     `)
-
-    client.dispose()
   })
 
   it('should use CORS settings from the server', async () => {
@@ -231,7 +234,7 @@ describe('graphql-sse', () => {
       maskedErrors: false,
     })
 
-    const res = await yoga.fetch('http://yoga/graphql/stream', {
+    const res = await yoga.fetch('http://yoga/graphql', {
       method: 'OPTIONS',
       headers: {
         origin: 'http://yoga',
