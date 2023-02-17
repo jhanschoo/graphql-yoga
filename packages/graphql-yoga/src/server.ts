@@ -166,6 +166,14 @@ export type YogaServerOptions<TServerContext, TUserContext> = {
    * @default false
    */
   batching?: BatchingOptions
+  /**
+   * Use the [GraphQL over SSE spec](https://github.com/enisdenjo/graphql-sse/blob/master/PROTOCOL.md) for streaming results.
+   *
+   * Currently GraphQL Yoga supports exclusively the ["distinct connections mode"](https://github.com/enisdenjo/graphql-sse/blob/master/PROTOCOL.md#distinct-connections-mode).
+   *
+   * @note Starting from next major release of Yoga, this option will be dropped an GraphQL over SSE spec will be the only option.
+   */
+  graphqlSse?: boolean
 }
 
 export type BatchingOptions =
@@ -341,7 +349,9 @@ export class YogaServer<
         parse: parsePOSTFormUrlEncodedRequest,
       }),
       // Middlewares after the GraphQL execution
-      useResultProcessors(),
+      useResultProcessors({
+        graphqlSse: !!options?.graphqlSse,
+      }),
       ...(options?.plugins ?? []),
       // To make sure those are called at the end
       {
