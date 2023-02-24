@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint-disable */
 const { build } = require('esbuild')
 
@@ -5,10 +6,10 @@ async function main() {
   await build({
     entryPoints: ['./pages/api/graphql.ts'],
     outfile: 'dist/index.js',
-    format: 'cjs',
+    format: 'esm',
     minify: false,
     bundle: true,
-    platform: 'node',
+    platform: 'browser',
     target: 'es2020',
   })
 
