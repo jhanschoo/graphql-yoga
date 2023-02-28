@@ -1,31 +1,22 @@
 import * as pulumi from '@pulumi/pulumi'
+import * as fs from 'fs/promises'
+import * as path from 'path'
+import execa = require('execa')
 import {
   assertGraphiQL,
   assertQuery,
   env,
-  execPromise,
   fsPromises,
   waitForEndpoint,
 } from '../utils'
 import { DeploymentConfiguration } from '../types'
 
-type VercelProviderInputs = {
-  name: string
-  files: {
-    file: string
-    data: string
-  }[]
-  projectSettings: {}
-  version: 2
-}
-
-type VercelDeploymentInputs = {
-  [K in keyof VercelProviderInputs]: pulumi.Input<VercelProviderInputs[K]>
-}
+type VercelDeploymentInputs = {}
 
 class VercelProvider implements pulumi.dynamic.ResourceProvider {
   private baseUrl = 'https://api.vercel.com'
   private authToken = env('VERCEL_AUTH_TOKEN')
+  private directory = path.resolve(__dirname, '..', 'examples', 'nextjs-edge')
 
   private getTeamId(): string | null {
     try {
@@ -58,25 +49,25 @@ class VercelProvider implements pulumi.dynamic.ResourceProvider {
     }
   }
 
-  async create(
-    inputs: VercelProviderInputs,
-  ): Promise<pulumi.dynamic.CreateResult> {
+  async create(): Promise<pulumi.dynamic.CreateResult> {
+    // Create project
     const teamId = this.getTeamId()
-    const response = await fetch(
-      `${this.baseUrl}/v13/deployments${teamId ? `?teamId=${teamId}` : ''}`,
-      {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          Authorization: `Bearer ${this.authToken}`,
-        },
-        body: JSON.stringify({
-          name: inputs.name,
-          files: inputs.files,
-          projectSettings: inputs.projectSettings,
-        }),
+
+    const url = new URL(`${this.baseUrl}/v9/projects`)
+    url.searchParams.set('teamId', teamId)
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.authToken}`,
       },
-    )
+      body: JSON.stringify({
+        name: new Date().toISOString(),
+        framework: 'nextjs',
+      }),
+    })
+
+    await pulumi.log.info(`Create deployment (status=${response.status})`)
 
     if (response.status !== 200) {
       throw new Error(
@@ -86,12 +77,63 @@ class VercelProvider implements pulumi.dynamic.ResourceProvider {
       )
     }
 
-    const responseJson = await response.json()
+    const responseJson: {
+      id: string
+      // url: string
+    } = await response.json()
+
+    // Deploy project
+    await fs.rmdir(path.join(this.directory, '.vercel'), {
+      recursive: true,
+      // @ts-expect-error
+      force: true,
+    })
+
+    await fs.mkdir(path.join(this.directory, '.vercel'))
+
+    await fs.writeFile(
+      path.join(this.directory, '.vercel', 'project.json'),
+      JSON.stringify({
+        projectId: responseJson.id,
+        // TODO: figure out how we can `orgId` without inlining it.
+        orgId: 'team_pW5VoIWWt8KcRXmQoKn2dxpa',
+        settings: {
+          createdAt: 1677572115659,
+          framework: 'nextjs',
+          devCommand: null,
+          installCommand: null,
+          buildCommand: null,
+          outputDirectory: null,
+          rootDirectory: null,
+          directoryListing: false,
+          nodeVersion: '18.x',
+        },
+      }),
+    )
+
+    await execa('pnpm', ['run', 'end2end:build'], {
+      cwd: this.directory,
+    })
+
+    const deployment = await execa('pnpm', ['run', 'end2end:deploy'], {
+      cwd: this.directory,
+    })
+
+    const regex = /\n✅  Production: (https:\/\/.*.vercel.app) \[/
+
+    const result = deployment.all?.match(regex)
+
+    if (!Array.isArray(result)) {
+      pulumi.log.info("Couldn't find deployment URL in output.")
+      throw new Error("Couldn't find deployment URL in output.")
+    }
+
+    const deploymentUrl = result[1]
 
     return {
       id: responseJson.id,
       outs: {
-        url: responseJson.url,
+        url: deploymentUrl,
       },
     }
   }
@@ -120,53 +162,8 @@ export class VercelDeployment extends pulumi.dynamic.Resource {
 export const vercelEdgeDeployment: DeploymentConfiguration<{
   functionUrl: string
 }> = {
-  prerequisites: async () => {
-    // Build and bundle the function
-    console.info('\t\tℹ️ Bundling the Vercel Function....')
-    await execPromise('pnpm bundle', {
-      cwd: '../examples/nextjs-edge',
-    })
-  },
   program: async () => {
-    const nextJSVersion = JSON.parse(
-      (
-        await fsPromises.readFile('../examples/nextjs-edge/package.json')
-      ).toString('utf-8'),
-    )['dependencies']['next']
-
-    if (nextJSVersion == null || Number.isNaN(parseInt(nextJSVersion[0], 10))) {
-      throw new Error(`Failed to parse Next.js version from package.json.`)
-    }
-
-    const deployment = new VercelDeployment('vercel-edge', {
-      version: 2,
-      files: [
-        {
-          file: '.vercel/output/functions/api/graphql.func/index.js',
-          data: await fsPromises.readFile(
-            '../examples/nextjs-edge/dist/index.js',
-            'utf-8',
-          ),
-        },
-        {
-          file: '.vercel/output/functions/api/graphql.func/.vc-config.json',
-          data: JSON.stringify({
-            runtime: 'edge',
-            name: 'api/graphql',
-            deploymentTarget: 'v8-worker',
-            entrypoint: 'index.js',
-            envVarsInUse: [],
-            assets: [],
-            framework: {
-              slug: 'nextjs',
-              version: nextJSVersion,
-            },
-          }),
-        },
-      ],
-      name: `yoga-e2e-testing`,
-      projectSettings: {},
-    })
+    const deployment = new VercelDeployment('vercel-edge', {})
 
     return {
       functionUrl: pulumi.interpolate`https://${deployment.url}/api/graphql`,
