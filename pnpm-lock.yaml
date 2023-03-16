@@ -109,7 +109,7 @@ importers:
       '@pulumi/aws': 5.31.0
       '@pulumi/awsx': 0.40.1
       '@pulumi/azure-native': 1.97.0
-      '@pulumi/cloudflare': 4.16.0
+      '@pulumi/cloudflare': 5.0.0
       '@pulumi/docker': 4.0.0
       '@pulumi/pulumi': 3.58.0
       '@types/node': 18.15.3
@@ -119,7 +119,7 @@ importers:
       '@pulumi/aws': 5.31.0
       '@pulumi/awsx': 0.40.1_gcpftme6rfau7pvhbde7stjmii
       '@pulumi/azure-native': 1.97.0
-      '@pulumi/cloudflare': 4.16.0
+      '@pulumi/cloudflare': 5.0.0
       '@pulumi/docker': 4.0.0
       '@pulumi/pulumi': 3.58.0
       '@types/node': 18.15.3
@@ -9599,8 +9599,8 @@ packages:
       - supports-color
     dev: false
 
-  /@pulumi/cloudflare/4.16.0:
-    resolution: {integrity: sha512-cwdB70bLeKL/VNIqqOD5fpHQcocVmpHuiHH589eR+QUfbLa4f+M8yA/TTCcxx2AFFctTqO5wgVuC+faL8xZmWQ==}
+  /@pulumi/cloudflare/5.0.0:
+    resolution: {integrity: sha512-OSp8fYjsfs2a5N0IyYcXmSwqkYk0cQ3+rZ+60JFmBmYfXKNT//CIqSfjbbBR2OVD/bV/rAnf9VT3vLBc2qQyWQ==}
     requiresBuild: true
     dependencies:
       '@pulumi/pulumi': 3.58.0
